@@ -9,6 +9,7 @@ import (
 type EnvironmentResponse struct {
 	Environment string `json:"environment"`
 	Version     string `json:"version"`
+	Message     string `json:"message"`
 }
 
 func EnvironmentHandler(w http.ResponseWriter, r *http.Request) {
@@ -30,6 +31,7 @@ func EnvironmentHandler(w http.ResponseWriter, r *http.Request) {
 	response := EnvironmentResponse{
 		Environment: environment,
 		Version:     version,
+		Message:     "Hello, World!",
 	}
 
 	w.Header().Set("Content-Type", "application/json")
