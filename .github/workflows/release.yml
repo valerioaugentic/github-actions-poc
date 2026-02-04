@@ -5,80 +5,46 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: read
+  packages: write
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/api-environment
 
 jobs:
-  build-and-push:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      image: ${{ steps.image.outputs.image }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Extract version
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Set image
-        id: image
-        run: echo "image=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Login to Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-
-  deploy-development:
-    needs: build-and-push
-    uses: ./.github/workflows/deploy.yml
+  build:
+    uses: ./.github/workflows/build.yml
     with:
-      environment: development
-      version: ${{ needs.build-and-push.outputs.version }}
-      image: ${{ needs.build-and-push.outputs.image }}
+      tags: |
+        ghcr.io/${{ github.repository_owner }}/api-environment:${{ github.ref_name }}
+        ghcr.io/${{ github.repository_owner }}/api-environment:latest
     secrets: inherit
 
   deploy-qa:
-    needs: build-and-push
+    needs: build
     uses: ./.github/workflows/deploy.yml
     with:
       environment: qa
-      version: ${{ needs.build-and-push.outputs.version }}
-      image: ${{ needs.build-and-push.outputs.image }}
+      version: ${{ github.ref_name }}
+      image: ${{ needs.build.outputs.image }}
     secrets: inherit
 
   deploy-staging:
-    needs: build-and-push
+    needs: build
     uses: ./.github/workflows/deploy.yml
     with:
       environment: staging
-      version: ${{ needs.build-and-push.outputs.version }}
-      image: ${{ needs.build-and-push.outputs.image }}
+      version: ${{ github.ref_name }}
+      image: ${{ needs.build.outputs.image }}
     secrets: inherit
 
   deploy-production:
-    needs: [build-and-push, deploy-staging]
+    needs: [build, deploy-staging]
     uses: ./.github/workflows/deploy.yml
     with:
       environment: production
-      version: ${{ needs.build-and-push.outputs.version }}
-      image: ${{ needs.build-and-push.outputs.image }}
+      version: ${{ github.ref_name }}
+      image: ${{ needs.build.outputs.image }}
     secrets: inherit
