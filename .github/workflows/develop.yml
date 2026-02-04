@@ -3,13 +3,13 @@ name: CI - Develop
 on:
   push:
     branches:
-      - develop
+      - dev
 
 jobs:
   build:
     uses: ./.github/workflows/build.yml
     with:
-      tags: ghcr.io/${{ github.repository_owner }}/api-environment:develop
+      tags: ghcr.io/${{ github.repository_owner }}/api-environment:dev
     secrets: inherit
 
   deploy:
@@ -17,6 +17,6 @@ jobs:
     uses: ./.github/workflows/deploy.yml
     with:
       environment: development
-      version: develop
+      version: dev
       image: ${{ needs.build.outputs.image }}
     secrets: inherit
