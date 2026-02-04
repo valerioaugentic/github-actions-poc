@@ -14,37 +14,47 @@ env:
   IMAGE_NAME: ${{ github.repository_owner }}/api-environment
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
   build:
+    needs: prepare
     uses: ./.github/workflows/build.yml
     with:
       tags: |
-        ghcr.io/${{ github.repository_owner }}/api-environment:${{ github.ref_name }}
+        ghcr.io/${{ github.repository_owner }}/api-environment:${{ needs.prepare.outputs.version }}
         ghcr.io/${{ github.repository_owner }}/api-environment:latest
     secrets: inherit
 
   deploy-qa:
-    needs: build
+    needs: [prepare, build]
     uses: ./.github/workflows/deploy.yml
     with:
       environment: qa
-      version: ${{ github.ref_name }}
+      version: ${{ needs.prepare.outputs.version }}
       image: ${{ needs.build.outputs.image }}
     secrets: inherit
 
   deploy-staging:
-    needs: build
+    needs: [prepare, build]
     uses: ./.github/workflows/deploy.yml
     with:
       environment: staging
-      version: ${{ github.ref_name }}
+      version: ${{ needs.prepare.outputs.version }}
       image: ${{ needs.build.outputs.image }}
     secrets: inherit
 
   deploy-production:
-    needs: [build, deploy-staging]
+    needs: [prepare, build, deploy-staging]
     uses: ./.github/workflows/deploy.yml
     with:
       environment: production
-      version: ${{ github.ref_name }}
+      version: ${{ needs.prepare.outputs.version }}
       image: ${{ needs.build.outputs.image }}
     secrets: inherit
