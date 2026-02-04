@@ -1,0 +1,48 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      image:
+        required: true
+        type: string
+
+env:
+  FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Show approver
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          APPROVER=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/approvals --jq '.[0].user.login' 2>/dev/null)
+          echo "Approved by: ${APPROVER:-auto}"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Fly.io
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy to Fly.io
+        run: |
+          flyctl deploy --remote-only \
+            --app api-environment-${{ inputs.environment }} \
+            --image ${{ inputs.image }} \
+            --env ENVIRONMENT=${{ inputs.environment }} \
+            --env VERSION=${{ inputs.version }}
+
+      - name: Test API
+        run: |
+          sleep 5
+          curl -s https://api-environment-${{ inputs.environment }}.fly.dev/environment | jq .
